@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  portfolio-sync:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: portfolio-sync
+    restart: unless-stopped
+    volumes:
+      # Mount service account (jangan di-commit ke git!)
+      - ../secrets/google-service-account.json:/app/secrets/google-service-account.json:ro
+    env_file:
+      - ../.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Cron variant — jalan otomatis via scheduler bawaan
+  portfolio-sync-cron:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: portfolio-sync-cron
+    restart: unless-stopped
+    volumes:
+      - ../secrets/google-service-account.json:/app/secrets/google-service-account.json:ro
+    env_file:
+      - ../.env
+    command: >
+      sh -c "
+      echo '0 */6 * * * cd /app && python scripts/github_to_sheets.py >> /app/logs/sync.log 2>&1' > /etc/crontabs/root &&
+      crond -f -l 2
+      "
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

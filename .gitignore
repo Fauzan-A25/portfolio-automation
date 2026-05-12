@@ -1,0 +1,27 @@
+# Environment
+.env
+secrets/*.json
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LinkedIn cache
+linkedin_data/.pdf_hash
+linkedin_data/.pdf_cache.json
+.vscode/
+.idea/
+*.swp
+*.swo

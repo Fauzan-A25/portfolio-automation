@@ -1,0 +1,100 @@
+name: Portfolio Auto-Sync
+
+on:
+  schedule:
+    # Setiap 6 jam: sync GitHub → GitHubRepos (GRATIS, no AI)
+    - cron: "0 */6 * * *"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ─── JOB 1: GitHub → GitHubRepos (GRATIS, tiap 6 jam) ───
+  github-sync:
+    name: Sync GitHub to Sheets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Setup Google credentials
+        run: |
+          mkdir -p secrets
+          echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > secrets/google-service-account.json
+
+      - name: Sync GitHub → GitHubRepos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_USERNAME: ${{ secrets.GITHUB_USERNAME || 'Fauzan-A25' }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_CREDENTIALS_PATH: secrets/google-service-account.json
+        run: python scripts/github_to_sheets.py
+
+      # ─── AI: Cek dulu perlu AI atau gak (GRATIS) ───
+      - name: Check if new repos need AI generation
+        id: check_ai
+        env:
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_CREDENTIALS_PATH: secrets/google-service-account.json
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          python scripts/github_to_projects_ai.py --check-only 2>&1 | tee check_output.txt
+          if grep -q "butuh generate" check_output.txt; then
+            echo "needs_ai=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_ai=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ─── AI: Generate Projects (BERBAYAR, cuma kalo perlu) ───
+      - name: AI Generate Project Entries
+        if: steps.check_ai.outputs.needs_ai == 'true'
+        env:
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_CREDENTIALS_PATH: secrets/google-service-account.json
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: python scripts/github_to_projects_ai.py
+
+  # ─── JOB 2: LinkedIn PDF → Sheets (trigger manual / push PDF) ───
+  linkedin-pdf-sync:
+    name: Parse LinkedIn PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.modified, 'linkedin_data/') ||
+      contains(github.event.head_commit.added, 'linkedin_data/')
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pymupdf
+
+      - name: Setup Google credentials
+        run: |
+          mkdir -p secrets
+          echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > secrets/google-service-account.json
+
+      - name: Parse LinkedIn PDF → sheets (skip if unchanged)
+        env:
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_CREDENTIALS_PATH: secrets/google-service-account.json
+        run: python scripts/linkedin_pdf_parser.py --auto --to-sheets
+
+      - name: Cleanup
+        if: always()
+        run: rm -f secrets/google-service-account.json

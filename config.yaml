@@ -1,0 +1,57 @@
+# =============================================================================
+# Portfolio Automation — Configuration
+# =============================================================================
+
+spreadsheet:
+  id: "1SjfncmLV-Xarqir6ur0G3YvJD0m5RogjBxOkTSoEgdU"
+  sheets:
+    github_repos: "GitHubRepos"
+    projects: "Projects"
+    certifications: "Certifications"
+    stats: "Stats"
+
+github:
+  username: "Fauzan-A25"
+  # Urutkan repositori berdasarkan kolom apa saat disimpan
+  sort_by: "pushed_at"   # pushed_at | stars | name | created_at
+  sort_reverse: true
+  # Filter repos yang tidak ingin disync
+  exclude_repos:
+    - "Fauzan-A25"      # Profile README repo
+  # Kolom yang akan disimpan ke sheets (urutan = urutan kolom)
+  fields:
+    - repo_name
+    - description
+    - primary_language
+    - stars
+    - forks
+    - topics
+    - last_commit
+    - created_at
+    - repo_url
+    - is_archived
+    - license
+    - last_synced
+
+linkedin:
+  enabled: false
+  username: "fauzanahsanudin"
+  # Mode:
+  #   "pdf"    ✅ RECOMMENDED — Download PDF dari LinkedIn, auto-parse ke sheets
+  #   "manual" — Kamu entry data sendiri, script bantu format
+  #   "api"    — Limited untuk individual dev
+  #   "scraper" — Risky, bisa kena block
+  mode: "pdf"
+  pdf_dir: "linkedin_data/"  # Folder tempat nyimpen PDF
+
+logging:
+  level: "INFO"
+  file: "logs/sync.log"
+  max_bytes: 10485760   # 10MB
+  backup_count: 3
+
+sync:
+  # Strategi update: "append" (tambah baru) atau "upsert" (update by repo_name)
+  strategy: "upsert"
+  # Kolom kunci untuk upsert
+  key_column: "repo_name"
