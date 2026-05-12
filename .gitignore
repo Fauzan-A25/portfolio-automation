@@ -19,8 +19,10 @@ build/
 Thumbs.db
 
 # LinkedIn cache
-linkedin_data/.pdf_hash
-linkedin_data/.pdf_cache.json
+# NOTE: pdf_hash dan pdf_cache WAJIB di-commit biar GitHub Actions
+# bisa deteksi kalo PDF gak berubah dan skip DeepSeek
+# linkedin_data/.pdf_hash
+# linkedin_data/.pdf_cache.json
 .vscode/
 .idea/
 *.swp
