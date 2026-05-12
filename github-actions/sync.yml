@@ -32,8 +32,8 @@ jobs:
 
       - name: Sync GitHub → GitHubRepos
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_USERNAME: ${{ secrets.GITHUB_USERNAME || 'Fauzan-A25' }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_USERNAME: ${{ secrets.GH_USERNAME || 'Fauzan-A25' }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
           GOOGLE_CREDENTIALS_PATH: secrets/google-service-account.json
         run: python scripts/github_to_sheets.py
