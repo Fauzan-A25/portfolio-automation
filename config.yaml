@@ -17,7 +17,8 @@ github:
   sort_reverse: true
   # Filter repos yang tidak ingin disync
   exclude_repos:
-    - "Fauzan-A25"      # Profile README repo
+    - "Fauzan-A25"              # Profile README repo
+    - "portfolio-automation"    # Repo pipeline ini sendiri
   # Kolom yang akan disimpan ke sheets (urutan = urutan kolom)
   fields:
     - repo_name
