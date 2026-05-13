@@ -42,8 +42,8 @@ load_dotenv()
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-chat"  # legacy, kept for compatibility
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # Urutan kolom di sheet Projects
 PROJECTS_HEADERS = [

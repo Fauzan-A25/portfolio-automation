@@ -592,7 +592,7 @@ class LinkedInPDFtoSheets:
       5. Cache hasil biar re-run gak perlu API lagi
     """
 
-    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
     # Prompt template untuk extract LinkedIn data
     EXTRACT_PROMPT = """Extract structured data from this LinkedIn profile PDF text.
