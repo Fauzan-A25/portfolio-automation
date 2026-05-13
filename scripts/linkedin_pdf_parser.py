@@ -592,8 +592,7 @@ class LinkedInPDFtoSheets:
       5. Cache hasil biar re-run gak perlu API lagi
     """
 
-    DEEPSEEK_MODEL = "deepseek-chat"
-    DEEPSEEK_URL = "https://api.deepseek.com/v1/chat/completions"
+    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
     # Prompt template untuk extract LinkedIn data
     EXTRACT_PROMPT = """Extract structured data from this LinkedIn profile PDF text.
@@ -674,60 +673,87 @@ CRITICAL RULES:
         self.logger.info(f"📄 Raw text: {len(text)} chars extracted")
         return text
 
-    def _call_deepseek(self, raw_text):
-        """Send raw text to DeepSeek API → structured JSON."""
+    def _call_gemini(self, raw_text):
+        """Send raw text to Gemini API → structured JSON."""
         import requests as req
 
-        api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        api_key = os.getenv("GEMINI_API_KEY", "")
         if not api_key:
-            self.logger.error("❌ DEEPSEEK_API_KEY tidak ditemukan!")
+            self.logger.error("❌ GEMINI_API_KEY tidak ditemukan!")
+            # Fallback ke DeepSeek
+            ds_key = os.getenv("DEEPSEEK_API_KEY", "")
+            if ds_key:
+                return self._call_deepseek_fallback(raw_text, ds_key)
             return None
 
         prompt = self.EXTRACT_PROMPT.format(raw_text=raw_text)
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a data extraction expert. Extract structured data from LinkedIn profile PDFs. Return ONLY valid JSON, no other text.",
-            },
-            {"role": "user", "content": prompt},
-        ]
-
+        
         # Estimasi token
-        input_tokens = len(prompt) // 4
-        self.logger.info(f"🤖 DeepSeek call — estimasi input: ~{input_tokens} tokens")
+        input_chars = len(prompt)
+        self.logger.info(f"🤖 Gemini call — estimasi input: ~{input_chars // 4} tokens")
+
+        url = f"{self.GEMINI_API_URL}?key={api_key}"
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.1,
+                "maxOutputTokens": 4000,
+            }
+        }
 
         try:
+            resp = req.post(url, json=payload, timeout=120)
+            resp.raise_for_status()
+            result = resp.json()
+            
+            # Token tracking (Gemini doesn't always return usage)
+            if "usageMetadata" in result:
+                u = result["usageMetadata"]
+                self.logger.info(
+                    f"📊 Token usage: {u.get('promptTokenCount', '?')} in + "
+                    f"{u.get('candidatesTokenCount', '?')} out = "
+                    f"{u.get('totalTokenCount', '?')} total"
+                )
+            
+            content = result["candidates"][0]["content"]["parts"][0]["text"]
+            return content
+
+        except Exception as e:
+            self.logger.error(f"❌ Gemini API error: {e}")
+            # Fallback ke DeepSeek
+            ds_key = os.getenv("DEEPSEEK_API_KEY", "")
+            if ds_key:
+                self.logger.info("Fallback ke DeepSeek...")
+                return self._call_deepseek_fallback(raw_text, ds_key)
+            return None
+
+    def _call_deepseek_fallback(self, raw_text, api_key):
+        """Fallback: call DeepSeek API jika Gemini gagal."""
+        import requests as req
+        
+        prompt = self.EXTRACT_PROMPT.format(raw_text=raw_text)
+        messages = [
+            {"role": "system", "content": "You are a data extraction expert."},
+            {"role": "user", "content": prompt},
+        ]
+        
+        try:
             resp = req.post(
-                self.DEEPSEEK_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self.DEEPSEEK_MODEL,
-                    "messages": messages,
-                    "temperature": 0.1,
-                    "max_tokens": 4000,
-                },
+                "https://api.deepseek.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": "deepseek-chat", "messages": messages, "temperature": 0.1, "max_tokens": 4000},
                 timeout=120,
             )
             resp.raise_for_status()
             result = resp.json()
-
-            # Tracking token usage
-            usage = result.get("usage", {})
-            if usage:
-                self.logger.info(
-                    f"📊 Token usage: {usage.get('prompt_tokens', '?')} in + "
-                    f"{usage.get('completion_tokens', '?')} out = "
-                    f"{usage.get('total_tokens', '?')} total"
-                )
-
-            content = result["choices"][0]["message"]["content"]
-            return content
-
+            return result["choices"][0]["message"]["content"]
         except Exception as e:
-            self.logger.error(f"❌ DeepSeek API error: {e}")
+            self.logger.error(f"❌ DeepSeek fallback juga gagal: {e}")
             return None
 
     def _parse_ai_response(self, content):
@@ -802,12 +828,12 @@ CRITICAL RULES:
             self._print_summary(data)
             return data
 
-        # Production: DeepSeek AI (~2000 token)
-        self.logger.info("🤖 Parsing dengan DeepSeek AI...")
-        response = self._call_deepseek(raw_text)
+        # Production: Gemini AI
+        self.logger.info("🤖 Parsing dengan Gemini AI...")
+        response = self._call_gemini(raw_text)
 
         if not response:
-            self.logger.warning("⚠️ DeepSeek gagal, fallback ke regex parser")
+            self.logger.warning("⚠️ Gemini gagal, fallback ke regex parser")
             parser = LinkedInPDFParser(self.pdf_path, self.logger)
             data = parser.parse()
         else:

@@ -40,7 +40,10 @@ load_dotenv()
 # ─── DeepSeek API ────────────────────────────────────────────────────────────
 
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-DEEPSEEK_MODEL = "deepseek-chat"  # deepseek-v4
+DEEPSEEK_MODEL = "deepseek-chat"  # legacy, kept for compatibility
+
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GEMINI_MODEL = "gemini-2.0-flash"
 
 # Urutan kolom di sheet Projects
 PROJECTS_HEADERS = [
@@ -51,38 +54,68 @@ PROJECTS_HEADERS = [
 ]
 
 
-def call_deepseek(api_key, messages, temperature=0.7, max_retries=3):
-    """Call DeepSeek API dengan retry logic."""
+def call_ai(api_key, system_prompt, user_prompt, temperature=0.7, max_retries=3):
+    """Call Gemini API with retry logic. Fallback: uses GEMINI_API_KEY."""
     import requests
-
-    for attempt in range(max_retries):
-        try:
-            resp = requests.post(
-                DEEPSEEK_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": DEEPSEEK_MODEL,
-                    "messages": messages,
-                    "temperature": temperature,
-                    "max_tokens": 4000,
-                },
-                timeout=120,
-            )
-            resp.raise_for_status()
-            result = resp.json()
-            content = result["choices"][0]["message"]["content"]
-            return content
-        except Exception as e:
-            if attempt < max_retries - 1:
-                wait = 2 ** attempt
-                print(f"  ⚠️ Retry {attempt+1}/{max_retries} after {wait}s: {e}")
-                time.sleep(wait)
-            else:
-                raise
-    return None
+    
+    # Use Gemini key if provided, otherwise fallback to DeepSeek key
+    gemini_key = api_key or os.getenv("GEMINI_API_KEY", "")
+    
+    if gemini_key:
+        # Gemini API call
+        url = f"{GEMINI_API_URL}?key={gemini_key}"
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": temperature,
+                "maxOutputTokens": 4000,
+            }
+        }
+        
+        for attempt in range(max_retries):
+            try:
+                resp = requests.post(url, json=payload, timeout=120)
+                resp.raise_for_status()
+                result = resp.json()
+                text = result["candidates"][0]["content"]["parts"][0]["text"]
+                return text
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt
+                    print(f"  ⚠️ Gemini retry {attempt+1}/{max_retries} after {wait}s: {e}")
+                    time.sleep(wait)
+                else:
+                    raise
+    
+    # Fallback to DeepSeek
+    ds_key = os.getenv("DEEPSEEK_API_KEY", "")
+    if ds_key:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        for attempt in range(max_retries):
+            try:
+                resp = requests.post(
+                    DEEPSEEK_API_URL,
+                    headers={"Authorization": f"Bearer {ds_key}", "Content-Type": "application/json"},
+                    json={"model": DEEPSEEK_MODEL, "messages": messages, "temperature": temperature, "max_tokens": 4000},
+                    timeout=120,
+                )
+                resp.raise_for_status()
+                return resp.json()["choices"][0]["message"]["content"]
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                else:
+                    raise
+    
+    raise ValueError("No API key found. Set GEMINI_API_KEY or DEEPSEEK_API_KEY in .env")
 
 
 # ─── System Prompt ──────────────────────────────────────────────────────────
@@ -259,7 +292,7 @@ class GitHubToProjectsAI:
         self.logger.info(f"  🤖 Generating for: {repo_name}")
 
         try:
-            content = call_deepseek(self.api_key, messages)
+            content = call_ai(self.api_key, SYSTEM_PROMPT, prompt)
             parsed = parse_ai_response(content)
 
             if not parsed:

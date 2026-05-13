@@ -44,7 +44,7 @@ jobs:
         env:
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
           GOOGLE_CREDENTIALS_PATH: secrets/google-service-account.json
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python scripts/github_to_projects_ai.py --check-only 2>&1 | tee check_output.txt
           if grep -q "butuh generate" check_output.txt; then
@@ -59,7 +59,7 @@ jobs:
         env:
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
           GOOGLE_CREDENTIALS_PATH: secrets/google-service-account.json
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python scripts/github_to_projects_ai.py
 
   # ─── JOB 2: LinkedIn PDF → Sheets (trigger manual / push PDF) ───
