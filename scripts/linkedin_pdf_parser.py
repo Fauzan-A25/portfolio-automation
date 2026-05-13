@@ -609,46 +609,31 @@ RAW TEXT FROM PDF:
 Return ONLY valid JSON (no markdown, no code blocks) with this EXACT structure:
 {{
   "experiences": [
-    {{"company": "...", "position": "...", "start_date": "YYYY-MM", "end_date": "YYYY-MM or Present", "location": "...", "description": "..."}}
+    {{"title": "Job title/position", "company": "Company name", "location": "Bandung, Indonesia", "period": "Mon YYYY - Mon YYYY", "duration": "X months", "type": "Internship|Organization|Part-time|Full-time", "description": "1-2 sentences in Indonesian", "responsibilities": ["responsibility 1", "responsibility 2"], "technologies": ["tech1", "tech2"], "achievements": []}}
   ],
   "certifications": [
-    {{"name": "...", "issuer": "...", "issue_date": "YYYY-MM", "expiry_date": "", "credential_id": ""}}
+    {{"name": "Cert name", "issuer": "Issuer", "issueDate": "YYYY", "expiryDate": "", "credentialId": "", "credentialUrl": "", "description": ""}}
   ],
   "skills": [
-    {{"name": "..."}}
+    {{"name": "Skill name", "category": "programming|dataScience|tools|soft", "icon": "", "color": "", "yearsOfExperience": "", "description": "", "projects": []}}
   ],
   "education": [
-    {{"institution": "...", "degree": "...", "field": "...", "start_date": "YYYY-MM", "end_date": "YYYY-MM", "gpa": ""}}
+    {{"institution": "Univ name", "degree": "Degree name", "field": "Field of study", "startYear": "YYYY", "endYear": "YYYY", "gpa": ""}}
   ]
 }}
 
-CRITICAL RULES - FOLLOW EXACTLY:
-1. EXPERIENCES - include ONLY these, NO others:
-   - PRADA Telkom (Steering Committee Pendataan) - 2025-09 to Present
-   - Universitas Telkom (Asisten Lab NLP) - 2024-12 to Present
-   - Al-Fath Universitas Telkom (Kader PSDM & Media) - 2023-11 to 2026-02 - GROUP into 1 entry
-   - ISLAH Telkom University (OC & Data Manager) - 2024-07 to 2024-11 - GROUP into 1 entry
-   - PRADA Telkom (Head of PR) - 2024-12 to 2025-06
-   - GDGoC Telkom University (Active Member) - 2024-12 to 2025-06
-   - PT Bank Muamalat Indonesia (BSO Intern) - 2025-06 to 2025-08
-   - DO NOT include: SMAN 1 TALAGA, PMB 2024 as separate
-
-2. CERTIFICATIONS - from "Certifications" section ONLY, NOT from "Honors-Awards":
-   - Join broken lines into proper names
-   - NO duplicates
-   - Extract issuer and date where available
-
-3. SKILLS - extract ALL skills from the PDF:
-   - Include technical AND soft skills
-   - Remove duplicates
-   - Clean up formatting
-
-4. EDUCATION - should be 1 entry: Universitas Telkom
-
-5. DATES: use YYYY-MM format, "Present" for ongoing
-6. LOCATION: "Bandung, Indonesia" for all Telkom Univ activities
-7. DESCRIPTION: 1-2 sentences in Bahasa Indonesia, professional tone
-8. Return ONLY the JSON, nothing else"""
+CRITICAL RULES:
+1. EXPERIENCES - group multiple roles at same org into 1 entry
+2. Include ONLY: PRADA (Steering+PR), Univ Telkom (Lab Asst), Al-Fath, ISLAH, GDGoC, Bank Muamalat Intern
+3. DO NOT include: SMAN 1 TALAGA, PMB 2024
+4. period format: "Mon YYYY - Mon YYYY" or "Mon YYYY - Present"
+5. duration: human readable like "2 years", "5 months"
+6. type: "Organization" for campus orgs, "Internship" for Bank Muamalat, "Part-time" for Lab Asst
+7. responsibilities: 1-3 items array
+8. technologies: relevant tech stack array
+9. CERTIFICATIONS - from "Certifications" section ONLY, NOT "Honors-Awards"
+10. SKILLS - extract ALL skills, categorize properly
+11. Return ONLY JSON, nothing else"""
 
     def __init__(self, pdf_path, logger=None):
         self.pdf_path = pdf_path
@@ -868,16 +853,16 @@ CRITICAL RULES - FOLLOW EXACTLY:
             logger=self.logger,
         )
 
-        # Map sheet → field mapping
+        # Map sheet → field mapping (portfolio React format)
         field_map = {
-            "Experiences": ["company", "position", "start_date", "end_date", "location", "description"],
-            "Certifications": ["name", "issuer", "issue_date", "expiry_date", "credential_id"],
-            "Skills": ["name"],
-            "Education": ["institution", "degree", "field", "start_date", "end_date", "gpa"],
+            "Experiences": ["id", "title", "company", "location", "period", "duration", "type", "description", "responsibilities", "technologies", "achievements"],
+            "Certifications": ["id", "name", "issuer", "issueDate", "expiryDate", "credentialId", "credentialUrl", "description"],
+            "Skills": ["name", "category", "icon", "color", "yearsOfExperience", "description", "projects"],
+            "Education": ["institution", "degree", "field", "startYear", "endYear", "gpa"],
         }
 
         key_map = {
-            "Experiences": "company",
+            "Experiences": "title",
             "Certifications": "name",
             "Skills": "name",
             "Education": "institution",
