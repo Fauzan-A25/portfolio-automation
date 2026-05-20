@@ -248,7 +248,7 @@ IMPORTANT:
         section.right_margin = Cm(2)
         
         style = doc.styles['Normal']
-        style.font.name = 'Calibri'
+        style.font.name = 'Times New Roman'
         style.font.size = Pt(10)
         style.paragraph_format.space_after = Pt(2)
         
@@ -382,13 +382,13 @@ IMPORTANT:
                                leftMargin=2*cm, rightMargin=2*cm)
         
         styles = getSampleStyleSheet()
-        s_name = ParagraphStyle('N', fontSize=16, textColor=ACCENT, spaceAfter=2, fontName='Helvetica-Bold')
-        s_contact = ParagraphStyle('C', fontSize=9, textColor=GREY, spaceAfter=1, fontName='Helvetica')
-        s_section = ParagraphStyle('S', fontSize=11, textColor=ACCENT, spaceBefore=8, spaceAfter=4, fontName='Helvetica-Bold')
-        s_org = ParagraphStyle('O', fontSize=10, spaceBefore=4, spaceAfter=1, fontName='Helvetica-Bold')
-        s_normal = ParagraphStyle('T', fontSize=9.5, leading=12.5, spaceAfter=1, fontName='Helvetica')
-        s_bullet = ParagraphStyle('B', fontSize=9.5, leading=12.5, leftIndent=12, spaceAfter=1, fontName='Helvetica')
-        s_date = ParagraphStyle('D', fontSize=9, textColor=ACCENT, spaceAfter=2, fontName='Helvetica-Oblique')
+        s_name = ParagraphStyle('N', fontSize=16, textColor=ACCENT, spaceAfter=2, fontName='Times-Bold')
+        s_contact = ParagraphStyle('C', fontSize=9, textColor=GREY, spaceAfter=1, fontName='Times-Roman')
+        s_section = ParagraphStyle('S', fontSize=11, textColor=ACCENT, spaceBefore=8, spaceAfter=4, fontName='Times-Bold')
+        s_org = ParagraphStyle('O', fontSize=10, spaceBefore=4, spaceAfter=1, fontName='Times-Bold')
+        s_normal = ParagraphStyle('T', fontSize=9.5, leading=12.5, spaceAfter=1, fontName='Times-Roman')
+        s_bullet = ParagraphStyle('B', fontSize=9.5, leading=12.5, leftIndent=12, spaceAfter=1, fontName='Times-Roman')
+        s_date = ParagraphStyle('D', fontSize=9, textColor=ACCENT, spaceAfter=2, fontName='Times-Italic')
         
         hr = HRFlowable(width="100%", thickness=0.5, color=ACCENT, spaceBefore=2, spaceAfter=2)
         
@@ -454,7 +454,9 @@ IMPORTANT:
     def _create_template_docx(self, resume_text):
         """Create 2-column template-based DOCX from Template/Resume.docx."""
         import re as re_mod
-        from docx.shared import Cm as Cm2
+        from docx import Document
+        from docx.shared import Pt, Cm, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
         
         template_path = str(RESUMES_DIR.parent / "Resume" / "Template" / "Resume.docx")
         if not os.path.exists(template_path):
@@ -471,7 +473,7 @@ IMPORTANT:
             r.italic = kw.get('italic', False)
             r.font.size = Pt(kw.get('size', 10))
             r.font.color.rgb = kw.get('color', RGBColor(30, 30, 30))
-            r.font.name = 'Calibri'
+            r.font.name = 'Times New Roman'
             return r
         
         def _spacing(p):
@@ -553,7 +555,7 @@ IMPORTANT:
                 elif item.startswith(('*', chr(8226), chr(9656), '-')):
                     pp = main_cell.add_paragraph()
                     _spacing(pp)
-                    pp.paragraph_format.left_indent = Cm2(0.3)
+                    pp.paragraph_format.left_indent = Cm(0.3)
                     _add(pp, f'{chr(8226)} {item.lstrip("* " + chr(8226) + chr(9656) + "-").strip()}', size=8.5)
                 else:
                     pp = main_cell.add_paragraph()
@@ -582,7 +584,7 @@ IMPORTANT:
                 elif sec == 'ACHIEVEMENTS':
                     pp = side_cell.add_paragraph()
                     _spacing(pp)
-                    pp.paragraph_format.left_indent = Cm2(0.2)
+                    pp.paragraph_format.left_indent = Cm(0.2)
                     _add(pp, f'{chr(8226)} {item.lstrip("* " + chr(8226) + chr(9656) + "-").strip()}', size=8, color=RGBColor(100,100,100))
                 else:
                     pp = side_cell.add_paragraph()
