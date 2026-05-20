@@ -218,8 +218,237 @@ IMPORTANT:
             resume = re.sub(r'```(?:text|plain)?', '', resume)
             resume = resume.strip()
             self.logger.info(f"✅ Resume generated ({len(resume)} chars)")
+            
+            # Also generate styled DOCX and PDF
+            try:
+                self._create_styled_docx(resume)
+                self._create_styled_pdf(resume)
+            except Exception as e:
+                self.logger.warning(f"⚠️ Styled formatting failed: {e}")
         
         return resume
+
+    def _create_styled_docx(self, resume_text):
+        """Create a styled .docx with dividers and icons."""
+        from docx import Document
+        from docx.shared import Pt, Cm, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        
+        output_dir = RESUMES_DIR / self.company
+        output_path = output_dir / f"Resume_{self.company}.docx"
+        
+        doc = Document()
+        section = doc.sections[0]
+        section.top_margin = Cm(1.5)
+        section.bottom_margin = Cm(1.5)
+        section.left_margin = Cm(2)
+        section.right_margin = Cm(2)
+        
+        style = doc.styles['Normal']
+        style.font.name = 'Calibri'
+        style.font.size = Pt(10)
+        style.paragraph_format.space_after = Pt(2)
+        
+        def add_hr():
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(2)
+            p.paragraph_format.space_after = Pt(2)
+            pPr = p._p.get_or_add_pPr()
+            pBdr = OxmlElement('w:pBdr')
+            bottom = OxmlElement('w:bottom')
+            bottom.set(qn('w:val'), 'single')
+            bottom.set(qn('w:sz'), '4')
+            bottom.set(qn('w:space'), '1')
+            bottom.set(qn('w:color'), '00D4AA')
+            pBdr.append(bottom)
+            pPr.append(pBdr)
+        
+        lines = resume_text.split('\n')
+        i = 0
+        in_header = True
+        
+        while i < len(lines):
+            line = lines[i].strip()
+            if not line:
+                i += 1
+                continue
+            
+            if in_header and i < 4:
+                p = doc.add_paragraph()
+                if i == 0:
+                    run = p.add_run(line.upper())
+                    run.bold = True
+                    run.font.size = Pt(16)
+                    run.font.color.rgb = RGBColor(0, 212, 170)
+                elif i >= 1:
+                    parts = line.split('|')
+                    for j, part in enumerate(parts):
+                        part = part.strip()
+                        run = p.add_run(part)
+                        run.font.size = Pt(9)
+                        run.font.color.rgb = RGBColor(100, 100, 100)
+                        if j < len(parts) - 1:
+                            run = p.add_run(' | ')
+                            run.font.size = Pt(9)
+                            run.font.color.rgb = RGBColor(200, 200, 200)
+                if i == min(3, len(lines)-1):
+                    add_hr()
+                    in_header = False
+                i += 1
+                continue
+            
+            is_section = line.isupper() and len(line) < 35 and '|' not in line and not line.startswith('HTTP')
+            is_org = '|' in line and len(line) < 100
+            is_date = bool(re.search(r'\d{4}\s*[–-]', line)) and len(line) < 60
+            
+            if is_section:
+                p = doc.add_paragraph()
+                p.paragraph_format.space_before = Pt(8)
+                p.paragraph_format.space_after = Pt(4)
+                run = p.add_run(f'▸ {line}')
+                run.bold = True
+                run.font.size = Pt(11)
+                run.font.color.rgb = RGBColor(0, 212, 170)
+            
+            elif is_org:
+                p = doc.add_paragraph()
+                p.paragraph_format.space_before = Pt(4)
+                p.paragraph_format.space_after = Pt(1)
+                parts = line.split('|')
+                if parts:
+                    run = p.add_run(parts[0].strip())
+                    run.bold = True
+                    run.font.size = Pt(10)
+                for part in parts[1:]:
+                    part = part.strip()
+                    if part:
+                        run = p.add_run(f' | {part}')
+                        run.font.size = Pt(9)
+                        run.font.color.rgb = RGBColor(100, 100, 100)
+            
+            elif is_date:
+                p = doc.add_paragraph()
+                p.paragraph_format.space_after = Pt(2)
+                run = p.add_run(line)
+                run.font.size = Pt(9)
+                run.font.italic = True
+                run.font.color.rgb = RGBColor(0, 212, 170)
+            
+            elif line.startswith(('*', '•', '-')):
+                p = doc.add_paragraph()
+                p.paragraph_format.space_after = Pt(1)
+                p.paragraph_format.left_indent = Cm(0.5)
+                clean = line.lstrip('* •-').strip()
+                run = p.add_run(f'▸ {clean}')
+                run.font.size = Pt(9.5)
+            
+            else:
+                p = doc.add_paragraph()
+                run = p.add_run(line)
+                run.font.size = Pt(9.5)
+            
+            i += 1
+        
+        add_hr()
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run('▸ References available upon request')
+        run.font.size = Pt(8)
+        run.font.color.rgb = RGBColor(150, 150, 150)
+        
+        doc.save(str(output_path))
+        self.logger.info(f"📄 DOCX saved: {output_path}")
+
+    def _create_styled_pdf(self, resume_text):
+        """Create a styled PDF with dividers and icons."""
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import cm
+        from reportlab.lib.colors import HexColor
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+        from reportlab.lib.enums import TA_CENTER
+        
+        output_dir = RESUMES_DIR / self.company
+        output_path = output_dir / f"Resume_{self.company}_Styled.pdf"
+        
+        ACCENT = HexColor('#00D4AA')
+        GREY = HexColor('#666666')
+        
+        doc = SimpleDocTemplate(str(output_path), pagesize=A4,
+                               topMargin=1.5*cm, bottomMargin=1.5*cm,
+                               leftMargin=2*cm, rightMargin=2*cm)
+        
+        styles = getSampleStyleSheet()
+        s_name = ParagraphStyle('N', fontSize=16, textColor=ACCENT, spaceAfter=2, fontName='Helvetica-Bold')
+        s_contact = ParagraphStyle('C', fontSize=9, textColor=GREY, spaceAfter=1, fontName='Helvetica')
+        s_section = ParagraphStyle('S', fontSize=11, textColor=ACCENT, spaceBefore=8, spaceAfter=4, fontName='Helvetica-Bold')
+        s_org = ParagraphStyle('O', fontSize=10, spaceBefore=4, spaceAfter=1, fontName='Helvetica-Bold')
+        s_normal = ParagraphStyle('T', fontSize=9.5, leading=12.5, spaceAfter=1, fontName='Helvetica')
+        s_bullet = ParagraphStyle('B', fontSize=9.5, leading=12.5, leftIndent=12, spaceAfter=1, fontName='Helvetica')
+        s_date = ParagraphStyle('D', fontSize=9, textColor=ACCENT, spaceAfter=2, fontName='Helvetica-Oblique')
+        
+        hr = HRFlowable(width="100%", thickness=0.5, color=ACCENT, spaceBefore=2, spaceAfter=2)
+        
+        story = []
+        lines = resume_text.split('\n')
+        i = 0
+        in_header = True
+        
+        while i < len(lines):
+            line = lines[i].strip()
+            if not line:
+                i += 1
+                continue
+            
+            if in_header and i < 4:
+                if i == 0:
+                    story.append(Paragraph(line.upper(), s_name))
+                elif i >= 1:
+                    parts = line.split('|')
+                    formatted = ''.join(
+                        f'<font color="#0066CC">{p.strip()}</font>' if 'linkedin' in p.lower() or 'github' in p.lower()
+                        else p.strip()
+                        for p in parts
+                    )
+                    story.append(Paragraph(formatted, s_contact))
+                if i == min(3, len(lines)-1):
+                    story.append(hr)
+                    in_header = False
+                i += 1
+                continue
+            
+            is_section = line.isupper() and len(line) < 35 and '|' not in line
+            is_org = '|' in line and len(line) < 100
+            is_date = bool(__import__('re').search(r'\d{4}\s*[–-]', line)) and len(line) < 60
+            
+            if is_section:
+                story.append(Paragraph(f'<bullet>&#9656;</bullet> {line}', s_section))
+            elif is_org:
+                parts = line.split('|')
+                formatted = f'<b>{parts[0].strip()}</b>'
+                for p in parts[1:]:
+                    p = p.strip()
+                    if p:
+                        formatted += f' <font color="#666666" size="9">| {p}</font>'
+                story.append(Paragraph(formatted, s_org))
+            elif is_date:
+                story.append(Paragraph(line, s_date))
+            elif line.startswith(('*', '•', '-')):
+                clean = line.lstrip('* •-').strip()
+                story.append(Paragraph(f'<bullet>&#9656;</bullet> {clean}', s_bullet))
+            else:
+                story.append(Paragraph(line, s_normal))
+            
+            i += 1
+        
+        story.append(hr)
+        story.append(Paragraph('<font color="#999999" size="8">▸ References available upon request</font>',
+                              ParagraphStyle('F', fontSize=8, textColor=HexColor('#999999'), spaceBefore=4, alignment=TA_CENTER)))
+        
+        doc.build(story)
+        self.logger.info(f"📄 Styled PDF saved: {output_path}")
 
     def save_resume(self, resume_text):
         """Save resume to file."""
