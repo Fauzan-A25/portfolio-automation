@@ -223,6 +223,7 @@ IMPORTANT:
             try:
                 self._create_styled_docx(resume)
                 self._create_styled_pdf(resume)
+                self._create_template_docx(resume)  # Template 2-column format
             except Exception as e:
                 self.logger.warning(f"⚠️ Styled formatting failed: {e}")
         
@@ -449,6 +450,149 @@ IMPORTANT:
         
         doc.build(story)
         self.logger.info(f"📄 Styled PDF saved: {output_path}")
+
+    def _create_template_docx(self, resume_text):
+        """Create 2-column template-based DOCX from Template/Resume.docx."""
+        import re as re_mod
+        from docx.shared import Cm as Cm2
+        
+        template_path = str(RESUMES_DIR.parent / "Resume" / "Template" / "Resume.docx")
+        if not os.path.exists(template_path):
+            self.logger.warning(f"⚠️ Template not found: {template_path}")
+            return
+        
+        doc = Document(template_path)
+        table = doc.tables[0]
+        ACC = RGBColor(0, 212, 170)
+        
+        def _add(p, text, **kw):
+            r = p.add_run(text)
+            r.bold = kw.get('bold', False)
+            r.italic = kw.get('italic', False)
+            r.font.size = Pt(kw.get('size', 10))
+            r.font.color.rgb = kw.get('color', RGBColor(30, 30, 30))
+            r.font.name = 'Calibri'
+            return r
+        
+        def _spacing(p):
+            pf = p.paragraph_format
+            pf.space_before = Pt(0)
+            pf.space_after = Pt(0)
+            pf.line_spacing = 1.0
+        
+        # Parse sections
+        KNOWN = ['PROFESSIONAL SUMMARY', 'SUMMARY', 'EDUCATION', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'ACHIEVEMENTS']
+        sections = {'HEADER': []}
+        cur = 'HEADER'
+        for line in resume_text.split('\n'):
+            s = line.strip()
+            if not s: continue
+            if any(s.upper() == k.upper() for k in KNOWN):
+                cur = s.upper()
+                sections[cur] = []
+            else:
+                sections.setdefault(cur, []).append(s)
+        
+        # Header
+        hdr = sections.get('HEADER', [])
+        name = next((l for l in hdr if l and not any(x in l for x in ['@', '+', 'linkedin', 'github', '|'])), 'Fauzan Ahsanudin')
+        c0 = table.cell(0, 0)
+        c0.paragraphs[0].clear()
+        _add(c0.paragraphs[0], name.upper(), bold=True, size=14, color=ACC)
+        
+        summ = sections.get('PROFESSIONAL SUMMARY', sections.get('SUMMARY', []))
+        if summ:
+            p = c0.add_paragraph()
+            _spacing(p)
+            _add(p, summ[0][:150], size=8.5, color=RGBColor(100,100,100))
+        
+        c1 = table.cell(0, 1)
+        c1.paragraphs[0].clear()
+        for line in hdr:
+            if '@' in line or '+' in line or 'linkedin' in line.lower() or 'github' in line.lower():
+                parts = line.split('|')
+                for part in parts:
+                    p = c1.add_paragraph()
+                    _spacing(p)
+                    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    _add(p, part.strip(), size=8.5, color=RGBColor(100,100,100))
+        
+        # Content
+        main_cell = table.cell(1, 0)
+        side_cell = table.cell(1, 1)
+        for cell in [main_cell, side_cell]:
+            for p in cell.paragraphs:
+                p.clear()
+        
+        # LEFT
+        for sec in ['EXPERIENCE', 'EDUCATION', 'PROJECTS']:
+            items = sections.get(sec, [])
+            if not items: continue
+            p = main_cell.add_paragraph()
+            _spacing(p)
+            p.paragraph_format.space_before = Pt(6)
+            _add(p, sec, bold=True, size=10, color=ACC)
+            pu = main_cell.add_paragraph()
+            _spacing(pu)
+            _add(pu, chr(9472) * 40, size=5, color=ACC)
+            
+            for item in items:
+                if '|' in item or chr(8212) in item:
+                    sep = '|' if '|' in item else chr(8212)
+                    parts = item.split(sep)
+                    pp = main_cell.add_paragraph()
+                    _spacing(pp)
+                    pp.paragraph_format.space_before = Pt(3)
+                    _add(pp, parts[0].strip(), bold=True, size=9.5)
+                    if len(parts) > 1:
+                        _add(pp, f' {sep} {parts[1].strip()}', size=8.5, color=RGBColor(100,100,100))
+                elif re_mod.search(r'\d{4}\s*[–-]', item) and len(item) < 60:
+                    pp = main_cell.add_paragraph()
+                    _spacing(pp)
+                    _add(pp, item, size=8, color=ACC, italic=True)
+                elif item.startswith(('*', chr(8226), chr(9656), '-')):
+                    pp = main_cell.add_paragraph()
+                    _spacing(pp)
+                    pp.paragraph_format.left_indent = Cm2(0.3)
+                    _add(pp, f'{chr(8226)} {item.lstrip("* " + chr(8226) + chr(9656) + "-").strip()}', size=8.5)
+                else:
+                    pp = main_cell.add_paragraph()
+                    _spacing(pp)
+                    _add(pp, item, size=8.5)
+        
+        # RIGHT
+        for sec in ['PROFESSIONAL SUMMARY', 'SKILLS', 'ACHIEVEMENTS']:
+            items = sections.get(sec, [])
+            if not items: continue
+            
+            label = 'SUMMARY' if sec == 'PROFESSIONAL SUMMARY' else sec
+            p = side_cell.add_paragraph()
+            _spacing(p)
+            p.paragraph_format.space_before = Pt(6)
+            _add(p, label, bold=True, size=10, color=ACC)
+            pu = side_cell.add_paragraph()
+            _spacing(pu)
+            _add(pu, chr(9472) * 25, size=5, color=ACC)
+            
+            for item in items:
+                if sec == 'SKILLS':
+                    pp = side_cell.add_paragraph()
+                    _spacing(pp)
+                    _add(pp, item, size=8.5)
+                elif sec == 'ACHIEVEMENTS':
+                    pp = side_cell.add_paragraph()
+                    _spacing(pp)
+                    pp.paragraph_format.left_indent = Cm2(0.2)
+                    _add(pp, f'{chr(8226)} {item.lstrip("* " + chr(8226) + chr(9656) + "-").strip()}', size=8, color=RGBColor(100,100,100))
+                else:
+                    pp = side_cell.add_paragraph()
+                    _spacing(pp)
+                    _add(pp, item[:200], size=8, color=RGBColor(100,100,100))
+        
+        output_dir = RESUMES_DIR / self.company
+        output_path = output_dir / f"Resume_{self.company}_Template.docx"
+        doc.save(str(output_path))
+        self.logger.info(f"📄 Template DOCX saved: {output_path}")
 
     def save_resume(self, resume_text):
         """Save resume to file."""
