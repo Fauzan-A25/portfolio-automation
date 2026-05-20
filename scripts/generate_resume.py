@@ -130,19 +130,52 @@ class ResumeGenerator:
             self.logger.warning("⚠️ No job description found, generating generic resume")
             job_desc = f"Intern position at {self.company}"
         
-        system_prompt = """You are a Professional Resume Writer. Your task is to create a tailored ATS-friendly resume.
+        system_prompt = """You are an Expert Resume Writer certified by CPRW (Certified Professional Resume Writer). Your task is to create a HIGH-IMPACT, ATS-OPTIMIZED resume that passes the 7-second HR scan test.
 
-IMPORTANT RULES:
-1. Use PLAIN TEXT format (not markdown, not HTML)
-2. Keep it 1 page maximum
-3. Use sections: Contact Info | Profile Summary | Education | Skills | Experience | Projects | Achievements
-4. Tailor bullet points to match the job description keywords
-5. Use strong action verbs
-6. Quantify achievements with numbers where possible
-7. Keep descriptions concise and impactful
-8. Output as plain text only, no formatting codes"""
+=== CRITICAL FORMATTING RULES ===
+1. ONE PAGE MAXIMUM — no exceptions for <10 years experience
+2. REVERSE CHRONOLOGICAL order (most recent first)
+3. SINGLE COLUMN layout (NO tables, columns, text boxes)
+4. Standard section headers: "Professional Summary", "Education", "Skills", "Experience", "Projects"
+5. Plain text only — NO graphics, images, icons, or special characters
+6. Font-compatible: use clean ASCII formatting
 
-        user_prompt = f"""Create a tailored resume for this job:
+=== THE 7-SECOND SCAN STRATEGY ===
+Recruiters scan in F-pattern:
+- 0-2s: Name + title → must show relevance immediately
+- 2-4s: First 3 bullets of most recent role → MUST have QUANTIFIED RESULTS
+- 4-5s: Skills section → MUST match job description keywords EXACTLY
+- 5-6s: Company names → recognizable or impressive
+- 6-7s: Education → GPA, degree, school
+
+=== BULLET POINT RULES (XYZ Method) ===
+Format: "Accomplished [X] as measured by [Y], by doing [Z]"
+Examples:
+- "Reduced data processing time by 40% by implementing automated Python scripts for data cleaning"
+- "Increased model accuracy from 85% to 92% by engineering 15+ features and tuning hyperparameters"
+- "Managed data for 10,000+ mobile app entries, ensuring 100% accuracy through systematic validation"
+
+EVERY bullet MUST have:
+1. A strong ACTION VERB (Developed, Led, Optimized, Achieved, Implemented, Reduced, Delivered)
+2. A NUMBER/QUANTIFICATION (%, $, time saved, volume processed)
+3. A clear business/technical IMPACT
+
+NEVER start bullets with: "Responsible for", "Tasked with", "Duties included"
+
+=== PROFESSIONAL SUMMARY RULES ===
+- 2-3 lines maximum
+- First line: Title + years of experience + key differentiator
+- Second line: Technical skills relevant to THIS job
+- Third line: What you bring / career goal
+- Must include keywords from the job description
+
+=== KEYWORD OPTIMIZATION ===
+- Source exact phrases from the job description
+- Place keywords in: Summary > Skills > Experience bullets
+- Aim for 80%+ keyword match rate
+- Include exact job title from the description"""
+
+        user_prompt = f"""Create a 1-page ATS-optimized resume for this job:
 
 === JOB DESCRIPTION ===
 {job_desc}
@@ -153,13 +186,29 @@ IMPORTANT RULES:
 === COMPANY ===
 {self.company}
 
+=== TARGET ROLE ===
+Research & Data Analytics Intern
+
 === INSTRUCTIONS ===
-Create a 1-page plain text resume tailored specifically for this Research & Data Analytics internship at {self.company}.
-- Highlight data analysis, research, and analytics experience
-- Emphasize Python, SQL, Excel, data visualization skills
-- Tailor project descriptions to show business impact
-- Keep it ATS-friendly (no graphics, no columns)
-- Use "|" as separator between items on the same line"""
+Generate a plain text resume following ALL the formatting rules above.
+
+Section order for this candidate (Data Science student):
+1. Contact Info (name, phone, email, LinkedIn, GitHub)
+2. Professional Summary (3 lines max, keyword-optimized for Research & Data Analytics)
+3. Education (Telkom University, 3.60 GPA, relevant coursework)
+4. Skills (grouped by category, match JD keywords)
+5. Experience (Lab Assistant, PRADA, ISLAH, GDGoC — tailor bullets to data analytics)
+6. Projects (COPPA, FOSSIL, Anti-Spoofing — tailor to show data analysis + business impact)
+7. Achievements (competitions only, limit to 4-5 most relevant)
+
+IMPORTANT:
+- Every bullet point MUST have a quantified result or number
+- Use XYZ method: Accomplished X, measured by Y, by doing Z
+- Emphasize data analysis, research, Excel, Python, SQL skills
+- Keep it ONE PAGE — be concise, remove filler words
+- Use "|" pipe separator between items on same line
+- No markdown formatting, just clean plain text
+- Do NOT include "References available upon request" — outdated"""
 
         self.logger.info(f"🤖 Generating resume for {self.company}...")
         resume = self.call_gemini(system_prompt, user_prompt)
