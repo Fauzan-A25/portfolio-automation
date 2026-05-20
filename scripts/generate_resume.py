@@ -160,6 +160,17 @@ EVERY bullet MUST have:
 2. A NUMBER/QUANTIFICATION (%, $, time saved, volume processed)
 3. A clear business/technical IMPACT
 
+=== CRITICAL: ONE-PAGE CONSTRAINT ===
+This resume MUST fit on ONE PAGE only.
+- Maximum 4 bullet points per role (usually 2-3)
+- Maximum 4 roles/organizations listed
+- Projects: max 2 projects, 2 bullets each
+- Achievements: max 4 items
+- Skills: 3-4 lines only (most relevant)
+- Summary: 2 lines maximum
+- No empty lines between sections
+- No "References available upon request"
+
 NEVER start bullets with: "Responsible for", "Tasked with", "Duties included"
 
 === PROFESSIONAL SUMMARY RULES ===
@@ -465,13 +476,21 @@ IMPORTANT:
         
         doc = Document(template_path)
         table = doc.tables[0]
+        
+        # Tighten page margins
+        for section in doc.sections:
+            section.top_margin = Cm(1.0)
+            section.bottom_margin = Cm(1.0)
+            section.left_margin = Cm(1.8)
+            section.right_margin = Cm(1.8)
+        
         ACC = RGBColor(0, 212, 170)
         
         def _add(p, text, **kw):
             r = p.add_run(text)
             r.bold = kw.get('bold', False)
             r.italic = kw.get('italic', False)
-            r.font.size = Pt(kw.get('size', 10))
+            r.font.size = Pt(kw.get('size', 9))
             r.font.color.rgb = kw.get('color', RGBColor(30, 30, 30))
             r.font.name = 'Times New Roman'
             return r
@@ -480,7 +499,7 @@ IMPORTANT:
             pf = p.paragraph_format
             pf.space_before = Pt(0)
             pf.space_after = Pt(0)
-            pf.line_spacing = 1.0
+            pf.line_spacing = 0.9
         
         # Parse sections
         KNOWN = ['PROFESSIONAL SUMMARY', 'SUMMARY', 'EDUCATION', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'ACHIEVEMENTS']
@@ -532,7 +551,7 @@ IMPORTANT:
             if not items: continue
             p = main_cell.add_paragraph()
             _spacing(p)
-            p.paragraph_format.space_before = Pt(6)
+            p.paragraph_format.space_before = Pt(3)
             _add(p, sec, bold=True, size=10, color=ACC)
             pu = main_cell.add_paragraph()
             _spacing(pu)
@@ -544,7 +563,7 @@ IMPORTANT:
                     parts = item.split(sep)
                     pp = main_cell.add_paragraph()
                     _spacing(pp)
-                    pp.paragraph_format.space_before = Pt(3)
+                    pp.paragraph_format.space_before = Pt(2)
                     _add(pp, parts[0].strip(), bold=True, size=9.5)
                     if len(parts) > 1:
                         _add(pp, f' {sep} {parts[1].strip()}', size=8.5, color=RGBColor(100,100,100))
